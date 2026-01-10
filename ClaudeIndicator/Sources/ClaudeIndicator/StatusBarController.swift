@@ -1,11 +1,12 @@
 import AppKit
 import SwiftUI
 
-class StatusBarController {
+class StatusBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var menu: NSMenu!
     private let alertManager = AlertManager.shared
     private let settings = Settings.shared
+    private let stats = StatsManager.shared
 
     // Menu items that need updating
     private var ringToggleItem: NSMenuItem!
@@ -14,9 +15,15 @@ class StatusBarController {
     private var blinkToggleItem: NSMenuItem!
     private var dismissItem: NSMenuItem!
 
+    // Stats menu items
+    private var statsTodayItem: NSMenuItem!
+    private var statsWeekItem: NSMenuItem!
+    private var statsStreakItem: NSMenuItem!
+
     var onSettingsClicked: (() -> Void)?
 
-    init() {
+    override init() {
+        super.init()
         setupStatusItem()
         setupMenu()
 
@@ -42,9 +49,25 @@ class StatusBarController {
 
     private func setupMenu() {
         menu = NSMenu()
+        menu.delegate = self
 
-        // Dismiss alerts
-        dismissItem = NSMenuItem(title: "Dismiss All Alerts", action: #selector(dismissAlerts), keyEquivalent: "d")
+        // Stats section (will be updated when menu opens)
+        statsTodayItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        statsTodayItem.isEnabled = false
+        menu.addItem(statsTodayItem)
+
+        statsWeekItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        statsWeekItem.isEnabled = false
+        menu.addItem(statsWeekItem)
+
+        statsStreakItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        statsStreakItem.isEnabled = false
+        menu.addItem(statsStreakItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Dismiss pings
+        dismissItem = NSMenuItem(title: "Dismiss All", action: #selector(dismissAlerts), keyEquivalent: "d")
         dismissItem.keyEquivalentModifierMask = [.command, .shift]
         dismissItem.target = self
         menu.addItem(dismissItem)
@@ -56,7 +79,7 @@ class StatusBarController {
         ringToggleItem.target = self
         menu.addItem(ringToggleItem)
 
-        panelToggleItem = NSMenuItem(title: "Alert Panel", action: #selector(togglePanel), keyEquivalent: "")
+        panelToggleItem = NSMenuItem(title: "Ping Panel", action: #selector(togglePanel), keyEquivalent: "")
         panelToggleItem.target = self
         menu.addItem(panelToggleItem)
 
@@ -72,15 +95,47 @@ class StatusBarController {
 
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
+        settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        let quitItem = NSMenuItem(title: "Quit Claude Indicator", action: #selector(quitApp), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Claude Pings", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
         updateToggleStates()
+        updateStatsDisplay()
+    }
+
+    // MARK: - NSMenuDelegate
+
+    func menuWillOpen(_ menu: NSMenu) {
+        updateStatsDisplay()
+    }
+
+    private func updateStatsDisplay() {
+        let today = stats.todayStats
+        let todayAlerts = today?.alertCount ?? 0
+
+        // Today stats with icon
+        statsTodayItem.title = "Today: \(todayAlerts) pings"
+        statsTodayItem.image = NSImage(systemSymbolName: "sun.max", accessibilityDescription: nil)
+
+        // Week stats
+        let weekAlerts = stats.thisWeekAlerts
+        statsWeekItem.title = "This week: \(weekAlerts) pings"
+        statsWeekItem.image = NSImage(systemSymbolName: "calendar", accessibilityDescription: nil)
+
+        // Streak
+        let streak = stats.streakDays
+        if streak > 0 {
+            statsStreakItem.title = "Streak: \(streak) day\(streak == 1 ? "" : "s")"
+            statsStreakItem.image = NSImage(systemSymbolName: "flame", accessibilityDescription: nil)
+            statsStreakItem.isHidden = false
+        } else {
+            statsStreakItem.isHidden = true
+        }
     }
 
     private func updateToggleStates() {
@@ -160,15 +215,15 @@ class StatusBarController {
             let image = createBadgedIcon(count: alertCount)
             button.image = image
             button.title = ""
-            button.toolTip = alertCount == 1 ? "Claude Indicator — 1 alert" : "Claude Indicator — \(alertCount) alerts"
+            button.toolTip = alertCount == 1 ? "Claude Pings — 1 ping" : "Claude Pings — \(alertCount) pings"
         } else {
             // Show outline circle when idle
-            if let image = NSImage(systemSymbolName: "circle", accessibilityDescription: "Claude Indicator") {
+            if let image = NSImage(systemSymbolName: "circle", accessibilityDescription: "Claude Pings") {
                 let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
                 button.image = image.withSymbolConfiguration(config)
                 button.contentTintColor = nil
             }
-            button.toolTip = "Claude Indicator — Watching"
+            button.toolTip = "Claude Pings — Watching"
         }
     }
 

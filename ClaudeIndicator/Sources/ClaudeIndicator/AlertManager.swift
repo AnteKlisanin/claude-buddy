@@ -2,10 +2,19 @@ import Foundation
 import AppKit
 
 struct Alert: Hashable {
+    let id: String
     let pid: pid_t
     let screenID: CGDirectDisplayID
     let timestamp: Date
     let suppressRing: Bool
+
+    init(pid: pid_t, screenID: CGDirectDisplayID, timestamp: Date = Date(), suppressRing: Bool = false) {
+        self.id = "\(pid)-\(screenID)-\(timestamp.timeIntervalSince1970)"
+        self.pid = pid
+        self.screenID = screenID
+        self.timestamp = timestamp
+        self.suppressRing = suppressRing
+    }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(pid)
@@ -23,6 +32,7 @@ class AlertManager: ObservableObject {
     @Published private(set) var alerts: Set<Alert> = []
     private var dismissTimers: [Alert: Timer] = [:]
     private let settings = Settings.shared
+    private let stats = StatsManager.shared
 
     var hasActiveAlerts: Bool {
         !alerts.isEmpty
@@ -55,6 +65,8 @@ class AlertManager: ObservableObject {
             alerts.insert(alert)
         } else {
             alerts.insert(alert)
+            // Record stats for new alerts
+            stats.recordAlert(id: alert.id)
             // Play sound for new alerts only (but not if ring is suppressed - user is looking)
             if !suppressRing {
                 playAlertSound()
@@ -64,7 +76,7 @@ class AlertManager: ObservableObject {
         // Set up auto-dismiss if enabled
         if settings.autoDismissEnabled {
             let timer = Timer.scheduledTimer(withTimeInterval: settings.autoDismissDelay, repeats: false) { [weak self] _ in
-                self?.removeAlert(alert)
+                self?.dismissAlert(alert)
             }
             dismissTimers[alert] = timer
         }
@@ -84,16 +96,29 @@ class AlertManager: ObservableObject {
         NotificationCenter.default.post(name: .alertsDidChange, object: nil)
     }
 
+    /// Called when user clicks an alert to go to the terminal
+    func clickAlert(_ alert: Alert) {
+        stats.recordClick(id: alert.id)
+        removeAlert(alert)
+    }
+
+    /// Called when alert is dismissed without clicking
+    func dismissAlert(_ alert: Alert) {
+        stats.recordDismiss(id: alert.id)
+        removeAlert(alert)
+    }
+
     func dismissAlerts(for screenID: CGDirectDisplayID) {
         let screensAlerts = alerts.filter { $0.screenID == screenID }
         for alert in screensAlerts {
-            removeAlert(alert)
+            dismissAlert(alert)
         }
     }
 
     func dismissAllAlerts() {
         for alert in alerts {
             dismissTimers[alert]?.invalidate()
+            stats.recordDismiss(id: alert.id)
         }
         dismissTimers.removeAll()
         alerts.removeAll()

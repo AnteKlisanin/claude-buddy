@@ -48,10 +48,26 @@ struct SettingsView: View {
                     if settings.ringEnabled {
                         SettingsRow {
                             HStack {
-                                Text("Color")
+                                Text("Style")
                                 Spacer()
-                                ColorPicker("", selection: $settings.ringColor, supportsOpacity: false)
-                                    .labelsHidden()
+                                Picker("", selection: $settings.ringStyle) {
+                                    ForEach(Settings.RingStyle.allCases, id: \.self) { style in
+                                        Text(style.displayName).tag(style)
+                                    }
+                                }
+                                .labelsHidden()
+                                .frame(width: 130)
+                            }
+                        }
+
+                        if settings.ringStyle == .solid {
+                            SettingsRow {
+                                HStack {
+                                    Text("Color")
+                                    Spacer()
+                                    ColorPicker("", selection: $settings.ringColor, supportsOpacity: false)
+                                        .labelsHidden()
+                                }
                             }
                         }
 
@@ -114,12 +130,12 @@ struct SettingsView: View {
                     }
                 }
 
-                // Alert Panel Section
-                SettingsSection(title: "Alert Panel", icon: "bell.badge") {
+                // Ping Panel Section
+                SettingsSection(title: "Ping Panel", icon: "bell.badge") {
                     SettingsRow {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Show alert panel")
+                                Text("Show ping panel")
                                 Text("Displays a clickable notification in the corner")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -182,8 +198,8 @@ struct SettingsView: View {
                     SettingsRow {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Test alert")
-                                Text("Shows alert effect for 3 seconds")
+                                Text("Test ping")
+                                Text("Shows ping effect for 3 seconds")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -210,7 +226,7 @@ struct SettingsView: View {
                 SettingsSection(title: "Auto-Dismiss", icon: "timer") {
                     SettingsRow {
                         HStack {
-                            Text("Auto-dismiss alerts")
+                            Text("Auto-dismiss pings")
                             Spacer()
                             if settings.autoDismissEnabled {
                                 Text("\(Int(settings.autoDismissDelay))s")
@@ -230,7 +246,7 @@ struct SettingsView: View {
                 SettingsSection(title: "Keyboard Shortcuts", icon: "keyboard") {
                     SettingsRow {
                         HStack {
-                            Text("Dismiss all alerts")
+                            Text("Dismiss all pings")
                             Spacer()
                             HStack(spacing: 4) {
                                 KeyCapView(symbol: "command")
@@ -246,7 +262,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Focus detection")
                                 .fontWeight(.medium)
-                            Text("Alerts are automatically suppressed when the terminal is already in focus")
+                            Text("Pings are automatically suppressed when the terminal is already in focus")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -297,8 +313,8 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         InfoRow(number: 1, text: "Claude Code triggers the hook when waiting for input")
                         InfoRow(number: 2, text: "The hook writes to a trigger file")
-                        InfoRow(number: 3, text: "This app detects the change and shows an alert")
-                        InfoRow(number: 4, text: "Click the alert to jump to the correct terminal tab")
+                        InfoRow(number: 3, text: "This app detects the change and shows a ping")
+                        InfoRow(number: 4, text: "Click the ping to jump to the correct terminal tab")
                     }
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)

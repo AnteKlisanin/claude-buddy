@@ -125,8 +125,8 @@ class AlertPanelController {
         // Activate the terminal window
         WindowLocator.shared.activateWindow(for: alert.pid)
 
-        // Dismiss this specific alert
-        alertManager.removeAlert(alert)
+        // Record click and dismiss this specific alert
+        alertManager.clickAlert(alert)
     }
 }
 
@@ -137,9 +137,9 @@ struct AlertPanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "bell.fill")
-                    .foregroundColor(.red)
-                Text("Claude needs attention")
+                Image(systemName: "hand.wave.fill")
+                    .foregroundColor(.orange)
+                Text("Claude pinged you")
                     .font(.headline)
                 Spacer()
             }

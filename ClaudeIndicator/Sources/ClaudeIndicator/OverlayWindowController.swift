@@ -5,6 +5,7 @@ class OverlayWindowController {
     private var windows: [CGDirectDisplayID: OverlayWindow] = [:]
     private var animationTimer: Timer?
     private var animationPhase: CGFloat = 0
+    private var colorPhase: CGFloat = 0
     private let settings = Settings.shared
     private let alertManager = AlertManager.shared
     private var cancellables = Set<AnyCancellable>()
@@ -96,8 +97,12 @@ class OverlayWindowController {
 
         // Start or stop animation based on ring alerts (not all alerts)
         if !screensWithRingAlerts.isEmpty {
-            if settings.blinkingEnabled {
+            // Always animate for Siri style (color rotation) or when blinking is enabled
+            if settings.blinkingEnabled || settings.ringStyle == .siri {
                 startAnimation()
+                if !settings.blinkingEnabled {
+                    setOpacity(1.0) // Full opacity when not blinking
+                }
             } else {
                 stopAnimation()
                 setOpacity(1.0)
@@ -122,20 +127,38 @@ class OverlayWindowController {
     }
 
     private func updateAnimation() {
-        // Calculate opacity using sine wave for smooth pulsing
-        let speed = 1.0 / settings.blinkSpeed
-        animationPhase += CGFloat(1.0 / 60.0) * CGFloat(speed) * .pi * 2
+        // Handle Siri color rotation animation
+        if settings.ringStyle == .siri {
+            // Rotate colors around the perimeter (complete rotation every ~4 seconds)
+            let colorSpeed = 1.0 / settings.blinkSpeed * 0.5
+            colorPhase += CGFloat(1.0 / 60.0) * CGFloat(colorSpeed)
+            if colorPhase > 1.0 { colorPhase -= 1.0 }
+            setColorPhase(colorPhase)
+        }
 
-        // Oscillate between 0.3 and 1.0
-        let opacity = 0.3 + 0.7 * (sin(animationPhase) + 1) / 2
+        // Handle blinking opacity animation (only if blinking is enabled)
+        if settings.blinkingEnabled {
+            let speed = 1.0 / settings.blinkSpeed
+            animationPhase += CGFloat(1.0 / 60.0) * CGFloat(speed) * .pi * 2
 
-        setOpacity(opacity)
+            // Oscillate between 0.3 and 1.0
+            let opacity = 0.3 + 0.7 * (sin(animationPhase) + 1) / 2
+            setOpacity(opacity)
+        }
     }
 
     private func setOpacity(_ opacity: CGFloat) {
         for (screenID, window) in windows {
             if alertManager.alertCount(for: screenID) > 0 {
                 window.overlayView?.currentOpacity = opacity
+            }
+        }
+    }
+
+    private func setColorPhase(_ phase: CGFloat) {
+        for (screenID, window) in windows {
+            if alertManager.alertCount(for: screenID) > 0 {
+                window.overlayView?.colorPhase = phase
             }
         }
     }

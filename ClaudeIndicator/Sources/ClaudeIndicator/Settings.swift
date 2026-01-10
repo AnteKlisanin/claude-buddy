@@ -6,6 +6,7 @@ class Settings: ObservableObject {
 
     private enum Keys {
         static let ringColor = "ringColor"
+        static let ringStyle = "ringStyle"
         static let blinkingEnabled = "blinkingEnabled"
         static let blinkSpeed = "blinkSpeed"
         static let ringThickness = "ringThickness"
@@ -36,8 +37,24 @@ class Settings: ObservableObject {
         }
     }
 
+    enum RingStyle: String, CaseIterable {
+        case solid = "solid"
+        case siri = "siri"
+
+        var displayName: String {
+            switch self {
+            case .solid: return "Solid Color"
+            case .siri: return "Siri"
+            }
+        }
+    }
+
     @Published var ringColor: Color {
         didSet { saveColor(ringColor, forKey: Keys.ringColor) }
+    }
+
+    @Published var ringStyle: RingStyle {
+        didSet { UserDefaults.standard.set(ringStyle.rawValue, forKey: Keys.ringStyle) }
     }
 
     @Published var blinkingEnabled: Bool {
@@ -97,6 +114,7 @@ class Settings: ObservableObject {
     init() {
         // Load saved values or use defaults
         self.ringColor = Settings.loadColor(forKey: Keys.ringColor) ?? Color(red: 1.0, green: 0.23, blue: 0.19) // #FF3B30
+        self.ringStyle = RingStyle(rawValue: UserDefaults.standard.string(forKey: Keys.ringStyle) ?? "") ?? .solid
         self.blinkingEnabled = UserDefaults.standard.object(forKey: Keys.blinkingEnabled) as? Bool ?? true
         self.blinkSpeed = UserDefaults.standard.object(forKey: Keys.blinkSpeed) as? Double ?? 1.0
         self.ringThickness = UserDefaults.standard.object(forKey: Keys.ringThickness) as? Double ?? 80.0
