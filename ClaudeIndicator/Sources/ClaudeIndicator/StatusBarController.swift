@@ -7,6 +7,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private let alertManager = AlertManager.shared
     private let settings = Settings.shared
     private let stats = StatsManager.shared
+    private let resources = ResourcesManager.shared
 
     // Menu items that need updating
     private var ringToggleItem: NSMenuItem!
@@ -19,6 +20,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private var statsTodayItem: NSMenuItem!
     private var statsWeekItem: NSMenuItem!
     private var statsStreakItem: NSMenuItem!
+
+    // Resources menu items
+    private var resourcesHeaderItem: NSMenuItem!
+    private var resourcesSubmenu: NSMenu!
 
     var onSettingsClicked: (() -> Void)?
 
@@ -63,6 +68,15 @@ class StatusBarController: NSObject, NSMenuDelegate {
         statsStreakItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         statsStreakItem.isEnabled = false
         menu.addItem(statsStreakItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Resources section
+        resourcesHeaderItem = NSMenuItem(title: "Resources", action: nil, keyEquivalent: "")
+        resourcesHeaderItem.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)
+        resourcesSubmenu = NSMenu()
+        resourcesHeaderItem.submenu = resourcesSubmenu
+        menu.addItem(resourcesHeaderItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -112,6 +126,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         updateStatsDisplay()
+        updateResourcesDisplay()
     }
 
     private func updateStatsDisplay() {
@@ -136,6 +151,95 @@ class StatusBarController: NSObject, NSMenuDelegate {
         } else {
             statsStreakItem.isHidden = true
         }
+    }
+
+    private func updateResourcesDisplay() {
+        resources.loadResources()
+        resourcesSubmenu.removeAllItems()
+
+        let totalCount = resources.totalResourceCount
+
+        if totalCount == 0 {
+            resourcesHeaderItem.title = "Resources"
+            let emptyItem = NSMenuItem(title: "No active resources", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            resourcesSubmenu.addItem(emptyItem)
+            return
+        }
+
+        resourcesHeaderItem.title = "Resources (\(totalCount))"
+
+        // Ports section
+        if !resources.ports.isEmpty {
+            let portsHeader = NSMenuItem(title: "Ports", action: nil, keyEquivalent: "")
+            portsHeader.isEnabled = false
+            portsHeader.image = NSImage(systemSymbolName: "network", accessibilityDescription: nil)
+            resourcesSubmenu.addItem(portsHeader)
+
+            for port in resources.ports {
+                let isActive = resources.isPortInUse(port.port)
+                let item = NSMenuItem(title: "  :\(port.port) — \(port.project)", action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                if isActive {
+                    item.image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: nil)?
+                        .withSymbolConfiguration(.init(pointSize: 8, weight: .regular))
+                    item.image?.isTemplate = false
+                }
+                resourcesSubmenu.addItem(item)
+            }
+        }
+
+        // Databases section
+        if !resources.databases.isEmpty {
+            if !resources.ports.isEmpty {
+                resourcesSubmenu.addItem(NSMenuItem.separator())
+            }
+
+            let dbHeader = NSMenuItem(title: "Databases", action: nil, keyEquivalent: "")
+            dbHeader.isEnabled = false
+            dbHeader.image = NSImage(systemSymbolName: "cylinder", accessibilityDescription: nil)
+            resourcesSubmenu.addItem(dbHeader)
+
+            for db in resources.databases {
+                var title = "  \(db.name) — \(db.project)"
+                if let port = db.port {
+                    title += " (:\(port))"
+                }
+                let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                resourcesSubmenu.addItem(item)
+            }
+        }
+
+        // Simulators section
+        if !resources.simulators.isEmpty {
+            if !resources.ports.isEmpty || !resources.databases.isEmpty {
+                resourcesSubmenu.addItem(NSMenuItem.separator())
+            }
+
+            let simHeader = NSMenuItem(title: "Simulators", action: nil, keyEquivalent: "")
+            simHeader.isEnabled = false
+            simHeader.image = NSImage(systemSymbolName: "iphone", accessibilityDescription: nil)
+            resourcesSubmenu.addItem(simHeader)
+
+            for sim in resources.simulators {
+                let item = NSMenuItem(title: "  \(sim.name) — \(sim.project)", action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                item.image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil)?
+                    .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
+                resourcesSubmenu.addItem(item)
+            }
+        }
+
+        // Clean action
+        resourcesSubmenu.addItem(NSMenuItem.separator())
+        let cleanItem = NSMenuItem(title: "Clean Stale Entries", action: #selector(cleanResources), keyEquivalent: "")
+        cleanItem.target = self
+        resourcesSubmenu.addItem(cleanItem)
+    }
+
+    @objc private func cleanResources() {
+        resources.cleanStaleEntries()
     }
 
     private func updateToggleStates() {

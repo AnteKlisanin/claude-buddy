@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var settings: Settings
+    @StateObject private var resourcesManager = ResourcesManager.shared
     @State private var showingPreview = false
     @State private var selectedTab = 0
 
@@ -19,13 +20,19 @@ struct SettingsView: View {
                 }
                 .tag(1)
 
+            resourcesTab
+                .tabItem {
+                    Label("Resources", systemImage: "server.rack")
+                }
+                .tag(2)
+
             integrationTab
                 .tabItem {
                     Label("Integration", systemImage: "link")
                 }
-                .tag(2)
+                .tag(3)
         }
-        .frame(width: 440, height: 420)
+        .frame(width: 440, height: 480)
     }
 
     // MARK: - Appearance Tab
@@ -291,6 +298,150 @@ struct SettingsView: View {
                                 Toggle("", isOn: $settings.suppressPanelWhenFocused)
                                     .toggleStyle(.switch)
                                     .labelsHidden()
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - Resources Tab
+
+    private var resourcesTab: some View {
+        ScrollView {
+            VStack(spacing: 1) {
+                // Summary
+                SettingsSection(title: "Active Resources", icon: "server.rack") {
+                    SettingsRow {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(resourcesManager.summaryText)
+                                    .fontWeight(.medium)
+                                if let lastUpdated = resourcesManager.lastUpdated {
+                                    Text("Updated \(lastUpdated.formatted(.relative(presentation: .named)))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Button(action: { resourcesManager.loadResources() }) {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    SettingsRow {
+                        HStack {
+                            Text("Clean stale entries")
+                            Spacer()
+                            Button("Clean") {
+                                resourcesManager.cleanStaleEntries()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                }
+
+                // Ports
+                if !resourcesManager.ports.isEmpty {
+                    SettingsSection(title: "Ports", icon: "network") {
+                        ForEach(resourcesManager.ports) { port in
+                            SettingsRow {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        HStack(spacing: 6) {
+                                            Text(":\(port.port)")
+                                                .font(.system(.body, design: .monospaced))
+                                                .fontWeight(.medium)
+                                            Text(port.project)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        if let path = port.path {
+                                            Text(path)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                        }
+                                    }
+                                    Spacer()
+                                    Circle()
+                                        .fill(resourcesManager.isPortInUse(port.port) ? Color.green : Color.orange)
+                                        .frame(width: 8, height: 8)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Databases
+                if !resourcesManager.databases.isEmpty {
+                    SettingsSection(title: "Databases", icon: "cylinder") {
+                        ForEach(resourcesManager.databases) { db in
+                            SettingsRow {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(db.name)
+                                            .fontWeight(.medium)
+                                        Text(db.project)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    if let port = db.port {
+                                        Text(":\(port)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Simulators
+                if !resourcesManager.simulators.isEmpty {
+                    SettingsSection(title: "Simulators", icon: "iphone") {
+                        ForEach(resourcesManager.simulators) { sim in
+                            SettingsRow {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(sim.name)
+                                            .fontWeight(.medium)
+                                        HStack(spacing: 4) {
+                                            Text(sim.project)
+                                            if let deviceType = sim.deviceType {
+                                                Text("•")
+                                                Text(deviceType)
+                                            }
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Empty state
+                if resourcesManager.totalResourceCount == 0 {
+                    SettingsSection(title: "No Resources", icon: "tray") {
+                        SettingsRow {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("No shared resources are currently registered.")
+                                    .foregroundColor(.secondary)
+                                Text("Claude agents can register ports, databases, and simulators in ~/.claude/shared-resources.json")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
