@@ -17,16 +17,41 @@ let sizes: [(CGFloat, String)] = [
     (1024, "icon_512x512@2x")
 ]
 
-// Siri-style colors
-let siriColors: [NSColor] = [
-    NSColor(red: 1.0, green: 0.18, blue: 0.57, alpha: 1.0),   // Pink
-    NSColor(red: 0.61, green: 0.35, blue: 0.71, alpha: 1.0),  // Purple
-    NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0),    // Blue
-    NSColor(red: 0.35, green: 0.78, blue: 0.98, alpha: 1.0),  // Cyan
-    NSColor(red: 0.2, green: 0.78, blue: 0.65, alpha: 1.0),   // Teal
-    NSColor(red: 1.0, green: 0.58, blue: 0.0, alpha: 1.0),    // Orange
-    NSColor(red: 1.0, green: 0.23, blue: 0.19, alpha: 1.0),   // Red
+// Siri-style base colors
+let siriBaseColors: [(r: CGFloat, g: CGFloat, b: CGFloat)] = [
+    (1.0, 0.18, 0.57),   // Pink
+    (0.61, 0.35, 0.71),  // Purple
+    (0.0, 0.48, 1.0),    // Blue
+    (0.35, 0.78, 0.98),  // Cyan
+    (0.2, 0.78, 0.65),   // Teal
+    (1.0, 0.58, 0.0),    // Orange
+    (1.0, 0.23, 0.19),   // Red
 ]
+
+// Interpolate between colors for smooth gradient
+func interpolateColor(from: (r: CGFloat, g: CGFloat, b: CGFloat),
+                      to: (r: CGFloat, g: CGFloat, b: CGFloat),
+                      t: CGFloat) -> NSColor {
+    let r = from.r + (to.r - from.r) * t
+    let g = from.g + (to.g - from.g) * t
+    let b = from.b + (to.b - from.b) * t
+    return NSColor(red: r, green: g, blue: b, alpha: 1.0)
+}
+
+// Generate smooth gradient with many segments
+let segmentCount = 72  // More segments = smoother gradient
+var siriColors: [NSColor] = []
+for i in 0..<segmentCount {
+    let position = CGFloat(i) / CGFloat(segmentCount) * CGFloat(siriBaseColors.count)
+    let colorIndex = Int(position) % siriBaseColors.count
+    let nextColorIndex = (colorIndex + 1) % siriBaseColors.count
+    let t = position - CGFloat(Int(position))
+
+    let color = interpolateColor(from: siriBaseColors[colorIndex],
+                                  to: siriBaseColors[nextColorIndex],
+                                  t: t)
+    siriColors.append(color)
+}
 
 func createIcon(size: CGFloat) -> NSImage {
     let image = NSImage(size: NSSize(width: size, height: size))
@@ -47,14 +72,14 @@ func createIcon(size: CGFloat) -> NSImage {
     let ringWidth = size * 0.09
 
     // Draw glow effect for each color segment
-    let segmentCount = siriColors.count
+    let colorCount = siriColors.count
     for glowLayer in stride(from: 4, through: 1, by: -1) {
         let glowAlpha = 0.15 / Double(glowLayer)
         let glowOffset = CGFloat(glowLayer) * ringWidth * 0.4
 
-        for i in 0..<segmentCount {
-            let startAngle = CGFloat(i) / CGFloat(segmentCount) * 360 - 90
-            let endAngle = CGFloat(i + 1) / CGFloat(segmentCount) * 360 - 90
+        for i in 0..<colorCount {
+            let startAngle = CGFloat(i) / CGFloat(colorCount) * 360 - 90
+            let endAngle = CGFloat(i + 1) / CGFloat(colorCount) * 360 - 90
 
             let path = NSBezierPath()
             path.appendArc(withCenter: center, radius: ringRadius + glowOffset, startAngle: startAngle, endAngle: endAngle)
@@ -67,9 +92,9 @@ func createIcon(size: CGFloat) -> NSImage {
     }
 
     // Draw main Siri gradient ring
-    for i in 0..<segmentCount {
-        let startAngle = CGFloat(i) / CGFloat(segmentCount) * 360 - 90
-        let endAngle = CGFloat(i + 1) / CGFloat(segmentCount) * 360 - 90
+    for i in 0..<colorCount {
+        let startAngle = CGFloat(i) / CGFloat(colorCount) * 360 - 90
+        let endAngle = CGFloat(i + 1) / CGFloat(colorCount) * 360 - 90
 
         let path = NSBezierPath()
         path.appendArc(withCenter: center, radius: ringRadius, startAngle: startAngle, endAngle: endAngle)
@@ -81,9 +106,9 @@ func createIcon(size: CGFloat) -> NSImage {
     }
 
     // Inner bright highlight ring
-    for i in 0..<segmentCount {
-        let startAngle = CGFloat(i) / CGFloat(segmentCount) * 360 - 90
-        let endAngle = CGFloat(i + 1) / CGFloat(segmentCount) * 360 - 90
+    for i in 0..<colorCount {
+        let startAngle = CGFloat(i) / CGFloat(colorCount) * 360 - 90
+        let endAngle = CGFloat(i + 1) / CGFloat(colorCount) * 360 - 90
 
         let path = NSBezierPath()
         path.appendArc(withCenter: center, radius: ringRadius - ringWidth * 0.25, startAngle: startAngle, endAngle: endAngle)
