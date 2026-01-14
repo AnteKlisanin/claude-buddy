@@ -417,12 +417,14 @@ struct DynamicIslandAlertRow: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())  // Makes entire area clickable
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(isHovered ? Color.white.opacity(0.1) : Color.clear)
             )
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())  // Ensures button hit area covers full bounds
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
